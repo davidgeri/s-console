@@ -142,11 +142,52 @@ export class sconsole {
             this.inputField?.focus();
         });
 
-        // Handle input and command history
-        this.inputField.addEventListener('keyup', (event) => {
+        // Handle input, command history, and keyboard shortcuts
+        this.inputField.addEventListener('keydown', (event) => {
+            // Keyboard shortcuts
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'l') {
+                event.preventDefault();
+                this.clear();
+                return;
+            }
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+                event.preventDefault();
+                this.inputField!.value = '';
+                return;
+            }
+            if (event.key === 'Escape') {
+                this.inputField!.blur();
+                return;
+            }
             if (event.key === 'Enter' && this.inputField!.value.trim()) {
-                this.handleInput(this.inputField!.value);
-            } else if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                const input = this.inputField!.value.trim();
+                this.appendToConsole(`User> ${input}`);
+                
+                // Add command to history if not empty and not duplicate of last command
+                if (input && (this.commandHistory.length === 0 || this.commandHistory[this.commandHistory.length - 1] !== input)) {
+                    this.commandHistory.push(input);
+                }
+                
+                // Reset history index
+                this.historyIndex = -1;
+                this.currentInput = '';
+
+                // Execute command
+                if (this.commands.has(input)) {
+                    const command = this.commands.get(input)!;
+                    command();
+                } else {
+                    this.appendToConsole(`<span class=":uno: text-red-500">Unknown command: ${input}</span>`);
+                }
+
+                this.inputField!.value = '';
+                this.scrollToBottom();
+                return;
+            }
+
+            // History navigation
+            if (event.key === 'ArrowUp') {
                 event.preventDefault();
                 if (this.historyIndex === -1) {
                     this.currentInput = this.inputField!.value;
@@ -169,29 +210,7 @@ export class sconsole {
         });
     }
 
-    private handleInput(input: string) {
-        const trimmedInput = input.trim();
-        this.appendToConsole(`User> ${trimmedInput}`);
 
-        // Add command to history if not empty and not duplicate of last command
-        if (trimmedInput && (this.commandHistory.length === 0 || this.commandHistory[this.commandHistory.length - 1] !== trimmedInput)) {
-            this.commandHistory.push(trimmedInput);
-        }
-        
-        // Reset history index
-        this.historyIndex = -1;
-        this.currentInput = '';
-
-        if (this.commands.has(trimmedInput)) {
-            const command = this.commands.get(trimmedInput)!;
-            command();
-        } else {
-            this.appendToConsole(`<span class=":uno: text-red-500">Unknown command: ${trimmedInput}</span>`);
-        }
-
-        this.inputField!.value = '';
-        this.scrollToBottom();
-    }
 
     public addCommand(key: string, callback: () => void) {
         this.commands.set(key, callback);

@@ -22,6 +22,10 @@ Built with TypeScript and styled with UnoCSS.
 
 - 🎨 Customizable appearance (font size, font family, themes)
 - ⌨️ Built-in commands (help, clear, font adjustment)
+- ⚡ Keyboard shortcuts for common actions:
+  - Ctrl/Cmd + L: Clear console
+  - Ctrl/Cmd + K: Clear input field
+  - Escape: Blur/unfocus input field
 - 🔧 Easy command creation and management
 - 🌐 Global window access for debugging
 - 📦 Multiple build formats (ESM, CJS, UMD, IIFE)
