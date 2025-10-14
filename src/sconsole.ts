@@ -8,6 +8,9 @@ export class sconsole {
     private inputField: HTMLInputElement | null = null;
     private consoleArea: HTMLElement | null = null;
     private commands: Map<string, () => void> = new Map();
+    private commandHistory: string[] = [];
+    private historyIndex: number = -1;
+    private currentInput: string = '';
     private options: ConsoleOptions = {
         fontSize: '14px',
         fontFamily: 'monospace',
@@ -139,22 +142,51 @@ export class sconsole {
             this.inputField?.focus();
         });
 
-        // Handle input
+        // Handle input and command history
         this.inputField.addEventListener('keyup', (event) => {
-            if (event.key === 'Enter') {
+            if (event.key === 'Enter' && this.inputField!.value.trim()) {
                 this.handleInput(this.inputField!.value);
+            } else if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                if (this.historyIndex === -1) {
+                    this.currentInput = this.inputField!.value;
+                }
+                if (this.historyIndex < this.commandHistory.length - 1) {
+                    this.historyIndex++;
+                    this.inputField!.value = this.commandHistory[this.commandHistory.length - 1 - this.historyIndex];
+                }
+            } else if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                if (this.historyIndex > -1) {
+                    this.historyIndex--;
+                    if (this.historyIndex === -1) {
+                        this.inputField!.value = this.currentInput;
+                    } else {
+                        this.inputField!.value = this.commandHistory[this.commandHistory.length - 1 - this.historyIndex];
+                    }
+                }
             }
         });
     }
 
     private handleInput(input: string) {
-        this.appendToConsole(`User> ${input}`);
+        const trimmedInput = input.trim();
+        this.appendToConsole(`User> ${trimmedInput}`);
 
-        if (this.commands.has(input)) {
-            const command = this.commands.get(input)!;
+        // Add command to history if not empty and not duplicate of last command
+        if (trimmedInput && (this.commandHistory.length === 0 || this.commandHistory[this.commandHistory.length - 1] !== trimmedInput)) {
+            this.commandHistory.push(trimmedInput);
+        }
+        
+        // Reset history index
+        this.historyIndex = -1;
+        this.currentInput = '';
+
+        if (this.commands.has(trimmedInput)) {
+            const command = this.commands.get(trimmedInput)!;
             command();
         } else {
-            this.appendToConsole(`<span class=":uno: text-red-500">Unknown command: ${input}</span>`);
+            this.appendToConsole(`<span class=":uno: text-red-500">Unknown command: ${trimmedInput}</span>`);
         }
 
         this.inputField!.value = '';
@@ -184,6 +216,9 @@ export class sconsole {
         if (this.inputField) {
             this.inputField.value = '';
         }
+        // Reset history index and current input but keep command history
+        this.historyIndex = -1;
+        this.currentInput = '';
     }
 
     private scrollToBottom() {
