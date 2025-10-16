@@ -164,7 +164,7 @@ export class sconsole {
             parent.style.background = 'linear-gradient(135deg, #6a11cb, #2575fc)';
             parent.style.color = 'white';
 
-            input.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+            input.style.backgroundColor = 'rgba(255, 255, 255, 0)';
             input.style.color = 'white';
             input.style.borderRadius = '4px';
 
