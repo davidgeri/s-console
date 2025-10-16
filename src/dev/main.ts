@@ -4,7 +4,7 @@ import "virtual:unocss-devtools";
 import { sconsole } from "../sconsole.ts";
 
 // Initialize console with default options
-let currentTheme: "light" | "dark" = "light";
+let currentTheme: "light" | "dark" | "colorful" = "light";
 const consoleInstance = new sconsole("console-container", {
   fontSize: "16px",
   fontFamily: "Arial",
@@ -51,21 +51,29 @@ setTimeout(() => {
 }, 500);
 
 // Theme toggle functionality
+// Theme toggle functionality
 const toggleThemeButton = document.getElementById("toggleTheme");
+
 if (toggleThemeButton) {
+  // Available themes in order
+  const themes = ["light", "dark", "colorful"] as const;
+  let themeIndex = 0;
+
   toggleThemeButton.addEventListener("click", () => {
-    currentTheme = currentTheme === "dark" ? "light" : "dark";
-    document.documentElement.classList.toggle("dark");
+    // Cycle through 3 themes
+    themeIndex = (themeIndex + 1) % themes.length;
+    currentTheme = themes[themeIndex];
+
+    // Update console theme
     consoleInstance.updateOptions({ theme: currentTheme });
-    toggleThemeButton.textContent = `Toggle Theme (${
-      currentTheme === "dark" ? "Light" : "Dark"
-    })`;
-    consoleInstance.appendToConsole(`Theme switched to ${currentTheme} mode`);
+
+    // Update button text and console feedback
+    toggleThemeButton.textContent = `Theme: ${currentTheme}`;
+    consoleInstance.appendToConsole(`🎨 Switched to ${currentTheme} theme`);
   });
-  // Set initial button text
-  toggleThemeButton.textContent = `Toggle Theme (${
-    currentTheme === "light" ? "Dark" : "Light"
-  })`;
+
+  // Initial label
+  toggleThemeButton.textContent = `Theme: ${currentTheme}`;
 }
 
 // Handle form submission for adding new commands

@@ -69,43 +69,112 @@ export class sconsole {
     }
 
     private createConsole() {
-        const consoleHtml = `
-                <div class=":uno: rounded-lg border-2 border-solid border-#1e1e1e">
-                    <div class=":uno: text-gray-700 text-sm font-bold my-2 px-3 flex justify-between">
-                        <label>Console</label>
-                        <div>
-                            <svg class="close-button :uno: bg-#1e1e1e cursor-pointer p-1 text-white rounded-md" width="20" height="20" viewBox="0 0 20 20">
-                                <path d="M 3 17 L 17 3 M 3 3 L 17 17" stroke="white" stroke-width="2" fill="none" />
-                            </svg>
-                        </div>
-                    </div>
-                    <div class=":uno: px-3 bg-#1e1e1e h-56 overflow-y-auto w-full text-white p-3" id="consoleParent">
-                        <div class=":uno: bg-#1e1e1e w-full" id="consoleOutput"></div>
-                        <div class=":uno: flex">
-                            <p class=":uno: text-white">User> </p>
-                            <input id="consoleInput" class=":uno: bg-#1e1e1e focus:outline-none w-full text-white" type="text">
-                        </div>
-                    </div>
+    const consoleHtml = `
+        <div class="sconsole :uno: rounded-lg border-2 border-solid border-#1e1e1e">
+            <div class=":uno: text-gray-700 text-sm font-bold my-2 px-3 flex justify-between">
+                <label>Console</label>
+                <div>
+                    <svg class="close-button :uno: bg-#1e1e1e cursor-pointer p-1 text-white rounded-md" width="20" height="20" viewBox="0 0 20 20">
+                        <path d="M 3 17 L 17 3 M 3 3 L 17 17" stroke="white" stroke-width="2" fill="none" />
+                    </svg>
                 </div>
-        `;
+            </div>
+            <div class=":uno: console-body h-56 overflow-y-auto w-full p-3" id="consoleParent">
+                <div class=":uno: w-full" id="consoleOutput"></div>
+                <div class=":uno: flex">
+                    <p class=":uno:">User> </p>
+                    <input id="consoleInput" class=":uno: focus:outline-none w-full" type="text">
+                </div>
+            </div>
+        </div>
+    `;  
 
-        if (this.container) {
-            this.container.innerHTML = consoleHtml;
-        } else {
-            // Create container if none provided
-            const div = document.createElement('div');
-            div.innerHTML = consoleHtml;
-            document.body.appendChild(div);
-            this.container = div;
-        }
-
-        // Get references to elements
-        this.inputField = this.container.querySelector('#consoleInput') as HTMLInputElement;
-        this.consoleArea = this.container.querySelector('#consoleOutput') as HTMLElement;
-
-        // Apply initial font styles
-        this.applyFontStyles();
+    if (this.container) {
+        this.container.innerHTML = consoleHtml;
+    } else {
+        const div = document.createElement('div');
+        div.innerHTML = consoleHtml;
+        document.body.appendChild(div);
+        this.container = div;
     }
+
+    this.inputField = this.container.querySelector('#consoleInput') as HTMLInputElement;
+    this.consoleArea = this.container.querySelector('#consoleOutput') as HTMLElement;
+
+    this.applyFontStyles();
+    this.applyTheme(); // ⬅️ add this line
+}
+
+   private applyTheme() {
+    if (!this.container) return;
+
+    const root = this.container.querySelector('.sconsole') as HTMLElement;
+    const parent = this.container.querySelector('#consoleParent') as HTMLElement;
+    const input = this.container.querySelector('#consoleInput') as HTMLInputElement;
+    const label = this.container.querySelector('label') as HTMLElement;
+
+    if (!root || !parent || !input || !label) return;
+
+    // 🧹 Reset all inline styles before applying new theme
+    [root, parent, input, label].forEach((el) => {
+        el.removeAttribute("style");
+    });
+
+    // Remove old theme classes
+    root.classList.remove('sconsole-dark', 'sconsole-light', 'sconsole-colorful');
+
+    switch (this.options.theme) {
+        case 'dark':
+            // 🌑 Dark theme
+            root.classList.add('sconsole-dark');
+            root.style.backgroundColor = '#f9f9f9';
+            root.style.color = 'white';
+
+            parent.style.backgroundColor = '#1e1e1e';
+            parent.style.color = 'white';
+
+            input.style.backgroundColor = '#1e1e1e';
+            input.style.color = 'white';
+
+            label.style.color = '#1e1e1e';
+            break;
+
+        case 'light':
+            // 🌕 Light theme
+            root.classList.add('sconsole-light');
+            root.style.backgroundColor = '#1e1e1e';
+            root.style.color = 'white';
+
+            parent.style.backgroundColor = '#f9f9f9';
+            parent.style.color = 'black';
+
+            input.style.backgroundColor = '#f9f9f9';
+            input.style.color = 'black';
+
+            label.style.color = 'white';
+            break;
+
+        case 'colorful':
+            // 🌈 Colorful theme
+            root.classList.add('sconsole-colorful');
+            root.style.background = 'linear-gradient(135deg, #ff7eb3, #ff758c, #ffcc70)';
+            root.style.color = 'white';
+            root.style.borderColor = '#ffcc70';
+
+            parent.style.background = 'linear-gradient(135deg, #6a11cb, #2575fc)';
+            parent.style.color = 'white';
+
+            input.style.backgroundColor = 'rgba(255, 255, 255, 0)';
+            input.style.color = 'white';
+            input.style.borderRadius = '4px';
+
+            label.style.color = '#fff';
+            label.style.textShadow = '0 1px 2px rgba(0,0,0,0.3)';
+            break;
+    }
+}
+
+
 
     private applyFontStyles() {
         if (this.consoleArea) {
@@ -216,11 +285,13 @@ export class sconsole {
         this.commands.set(key, callback);
     }
 
-    public updateOptions(newOptions: Partial<ConsoleOptions>) {
-        this.options = { ...this.options, ...newOptions };
-        this.applyFontStyles();
-        this.appendToConsole(`Options updated`);
-    }
+public updateOptions(newOptions: Partial<ConsoleOptions>) {
+    this.options = { ...this.options, ...newOptions };
+    this.applyFontStyles();
+    if (newOptions.theme) this.applyTheme(); // ⬅️ Re-apply theme dynamically
+    this.appendToConsole(`Options updated`);
+}
+
 
     public appendToConsole(message: string) {
         if (this.consoleArea) {
