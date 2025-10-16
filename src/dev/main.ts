@@ -4,7 +4,7 @@ import "virtual:unocss-devtools";
 import { sconsole } from "../sconsole.ts";
 
 // Initialize console with default options
-let currentTheme: "light" | "dark" = "light";
+let currentTheme: "light" | "dark" | "colorful" = "light";
 const consoleInstance = new sconsole("console-container", {
   fontSize: "16px",
   fontFamily: "Arial",
@@ -75,7 +75,6 @@ if (toggleThemeButton) {
   // Initial label
   toggleThemeButton.textContent = `Theme: ${currentTheme}`;
 }
-
 
 // Handle form submission for adding new commands
 const form = document.getElementById("commandForm") as HTMLFormElement;
