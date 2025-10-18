@@ -11,6 +11,16 @@ export class sconsole {
   private commandHistory: string[] = [];
   private historyIndex: number = -1;
   private currentInput: string = "";
+  private draggableEnabled = true;
+private resizableEnabled = true;
+
+// keep references to handlers so we can remove them later
+private _dragHandlers: {
+  pointerdown?: (e: PointerEvent) => void;
+  pointermove?: (e: PointerEvent) => void;
+  pointerup?: (e: PointerEvent) => void;
+} = {};
+
   private options: ConsoleOptions = {
     fontSize: "14px",
     fontFamily: "monospace",
@@ -107,7 +117,8 @@ export class sconsole {
 
     this.applyFontStyles();
     this.applyTheme(); // ⬅️ add this line
-    this.makeDraggable();
+    if (this.draggableEnabled) this.makeDraggable();
+    this.toggleResizable(this.resizableEnabled);
   }
 
   private applyTheme() {
@@ -202,9 +213,12 @@ export class sconsole {
     ".sconsole > div:first-child"
   ) as HTMLElement | null;
 
-  console.debug("[sconsole] makeDraggable root:", !!root, "header:", !!header);
-
   if (!root || !header) return;
+
+  // ensure we don't attach multiple listener sets
+  this.removeDragListeners();
+
+  header.style.cursor = "move";
 
   let isDragging = false;
   let offsetX = 0;
@@ -215,20 +229,19 @@ export class sconsole {
   let isFloating = false;
   let placeholder: HTMLElement | null = null;
 
-  header.style.cursor = "move";
-
-  // 🧩 Capture initial position and size once
   const initialRect = root.getBoundingClientRect();
   const initialState = {
     width: initialRect.width,
     height: initialRect.height,
     marginTop: getComputedStyle(root).marginTop,
     marginLeft: getComputedStyle(root).marginLeft,
+    left: initialRect.left + window.scrollX,
+    top: initialRect.top + window.scrollY,
   };
 
   const onPointerDown = (e: PointerEvent) => {
+    if (!this.draggableEnabled) return;
     if ((e as any).button !== undefined && (e as any).button !== 0) return;
-    console.debug("[sconsole] pointerdown");
     startX = e.clientX;
     startY = e.clientY;
     isDragging = true;
@@ -238,21 +251,24 @@ export class sconsole {
   };
 
   const onPointerMove = (e: PointerEvent) => {
-    if (!isDragging) return;
-
+    if (!this.draggableEnabled || !isDragging) return;
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
-
     if (!hasMoved && Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
 
     if (!isFloating) {
       const rect = root.getBoundingClientRect();
 
-      placeholder = document.createElement("div");
-      placeholder.style.width = `${rect.width}px`;
-      placeholder.style.height = `${rect.height}px`;
-      root.parentElement?.insertBefore(placeholder, root);
+placeholder = document.createElement("div");
+placeholder.classList.add("sconsole-placeholder");
+placeholder.style.width = `${rect.width}px`;
+placeholder.style.height = `${rect.height}px`;
+placeholder.style.display = getComputedStyle(root).display;
+placeholder.style.margin = getComputedStyle(root).margin;
+root.parentElement?.insertBefore(placeholder, root);
 
+
+      // float above page while dragging
       root.style.position = "fixed";
       root.style.left = `${rect.left}px`;
       root.style.top = `${rect.top}px`;
@@ -270,7 +286,7 @@ export class sconsole {
 
     hasMoved = true;
 
-    // 🧱 Keep inside viewport bounds
+    // clamp inside viewport
     const maxX = window.innerWidth - root.offsetWidth;
     const maxY = window.innerHeight - root.offsetHeight;
     const newX = Math.max(0, Math.min(e.clientX - offsetX, maxX));
@@ -282,7 +298,6 @@ export class sconsole {
 
   const onPointerUp = (e: PointerEvent) => {
     if (!isDragging) return;
-    console.debug("[sconsole] pointerup");
     isDragging = false;
     document.body.style.userSelect = "";
 
@@ -295,58 +310,80 @@ export class sconsole {
       const scrollY = window.scrollY;
       const scrollX = window.scrollX;
 
+      // put it back into the DOM where the placeholder was, then make absolute
       placeholder.parentElement.insertBefore(root, placeholder);
       placeholder.remove();
       placeholder = null;
       isFloating = false;
 
-      root.style.position = "relative";
-      root.style.left = "0";
-      root.style.top = "0";
-      root.style.zIndex = "";
-
-      const offsetTop =
-        finalRect.top + scrollY - root.getBoundingClientRect().top - scrollY;
-      const offsetLeft =
-        finalRect.left +
-        scrollX -
-        root.getBoundingClientRect().left -
-        scrollX;
-      root.style.marginTop = `${offsetTop}px`;
-      root.style.marginLeft = `${offsetLeft}px`;
+      // set absolute position relative to document so it stays where dropped and scrolls naturally
+      root.style.position = "absolute";
+      root.style.left = `${finalRect.left + scrollX}px`;
+      root.style.top = `${finalRect.top + scrollY}px`;
+      root.style.width = `${finalRect.width}px`;
+      root.style.zIndex = "9999";
+      root.style.margin = "0";
     }
   };
 
-  // 🖱️ Double-click → reset to original position & size
-  header.addEventListener("dblclick", () => {
-    console.debug("[sconsole] double-click → reset position & size");
-
-    // Reset transition
-    root.style.transition = "all 0.25s ease";
-    root.style.marginTop = initialState.marginTop;
-    root.style.marginLeft = initialState.marginLeft;
-    root.style.width = `${initialState.width}px`;
-    root.style.height = `${initialState.height}px`;
-
-    // Also clear floating mode if any
-    if (isFloating && placeholder) {
-      placeholder.parentElement?.insertBefore(root, placeholder);
-      placeholder.remove();
-      isFloating = false;
-      placeholder = null;
-      root.style.position = "relative";
-      root.style.left = "0";
-      root.style.top = "0";
-      root.style.zIndex = "";
-    }
-
-    setTimeout(() => (root.style.transition = ""), 250);
-  });
+  // store handlers so we can remove later
+  this._dragHandlers.pointerdown = onPointerDown;
+  this._dragHandlers.pointermove = onPointerMove;
+  this._dragHandlers.pointerup = onPointerUp;
 
   header.addEventListener("pointerdown", onPointerDown);
   document.addEventListener("pointermove", onPointerMove);
   document.addEventListener("pointerup", onPointerUp);
+
+  // double click reset (safe to add once; it uses stored initial state)
+header.addEventListener("dblclick", () => {
+  root.style.transition = "all 0.25s ease";
+
+  // If we had a placeholder, restore console into it
+  const ph = document.querySelector(".sconsole-placeholder");
+  if (ph && ph.parentElement) {
+    ph.parentElement.insertBefore(root, ph);
+    ph.remove();
+  }
+
+  // Reset back to document flow
+  root.style.position = "static";
+  root.style.left = "";
+  root.style.top = "";
+  root.style.width = "";
+  root.style.height = "";
+  root.style.marginTop = initialState.marginTop;
+  root.style.marginLeft = initialState.marginLeft;
+  root.style.zIndex = "";
+
+  setTimeout(() => {
+    root.style.transition = "";
+  }, 250);
+});
+
+  }
+  
+  private removeDragListeners() {
+  const header = this.container?.querySelector(".sconsole > div:first-child") as HTMLElement | null;
+  if (!header) return;
+
+  // remove stored handlers if present
+  if (this._dragHandlers.pointerdown) {
+    header.removeEventListener("pointerdown", this._dragHandlers.pointerdown);
+  }
+  if (this._dragHandlers.pointermove) {
+    document.removeEventListener("pointermove", this._dragHandlers.pointermove);
+  }
+  if (this._dragHandlers.pointerup) {
+    document.removeEventListener("pointerup", this._dragHandlers.pointerup);
+  }
+
+  // clear references
+  this._dragHandlers = {};
+  header.style.cursor = "default";
 }
+
+
 
 
   private applyFontStyles() {
@@ -501,4 +538,29 @@ export class sconsole {
       parent.scrollTop = parent.scrollHeight;
     }
   }
+
+public toggleDraggable(enabled?: boolean) {
+  if (typeof enabled === "boolean") this.draggableEnabled = enabled;
+  else this.draggableEnabled = !this.draggableEnabled;
+
+  if (this.draggableEnabled) {
+    // reattach listeners (guarded inside makeDraggable)
+    this.makeDraggable();
+  } else {
+    // remove only drag listeners; keep pointer events so resize still works
+    this.removeDragListeners();
+  }
+}
+
+public toggleResizable(enabled?: boolean) {
+  if (typeof enabled === "boolean") this.resizableEnabled = enabled;
+  else this.resizableEnabled = !this.resizableEnabled;
+
+  const root = this.container?.querySelector(".sconsole") as HTMLElement | null;
+  if (!root) return;
+
+  root.style.resize = this.resizableEnabled ? "both" : "none";
+}
+
+
 }
